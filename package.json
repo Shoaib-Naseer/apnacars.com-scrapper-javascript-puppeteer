@@ -1,0 +1,17 @@
+{
+  "name": "apna-motors-scrapper",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "json2csv": "^6.0.0-alpha.2",
+    "nodemon": "^2.0.21",
+    "puppeteer": "^19.7.3"
+  }
+}
