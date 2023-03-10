@@ -1,7 +1,7 @@
 const xpaths = {
   Price: `//p[contains(text(),"$")]`,
   Year: `//span[contains(text(),"Year")]/following-sibling::span`,
-  MakeModel1: `//span[contains(text(),"Make")]/following-sibling::span']`,
+  MakeModel1: `//span[contains(text(),"Make")]/following-sibling::span`,
   MakeModel2: `//span[contains(text(),"Model")]/following-sibling::span`,
 
   Kilometers: `//span[contains(text(),"Odometer")]/following-sibling::span`,
