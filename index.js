@@ -1,35 +1,19 @@
 const xpaths = {
-  Price: `//p[contains(text(),"$")]`,
-  Year: `//span[contains(text(),"Year")]/following-sibling::span`,
-  MakeModel1: `//span[contains(text(),"Make")]/following-sibling::span`,
-  MakeModel2: `//span[contains(text(),"Model")]/following-sibling::span`,
-
-  Kilometers: `//span[contains(text(),"Odometer")]/following-sibling::span`,
-
-  Transmission: `//span[contains(text(),"Transmission")]/following-sibling::span']`,
-
-  Engine: `//span[contains(text(),"Engine")]/following-sibling::span`,
-
-  EngineSize: `//span[contains(text(),"Engine Size")]/following-sibling::span`,
-
-  Trim: `//p[contains(@class,"DetaileProductCustomrWeb-title")]`,
-  CityFuelEconomy: `//span[contains(text(),"City Fuel")]/following-sibling::span`,
-
-  HwyFuelEconomy: `//span[contains(text(),"Highway Fuel")]/following-sibling::span`,
-
-  DriveType: `//span[contains(text(),"Drivetrain")]/following-sibling::span`,
-
-  ExteriorColor: `//span[contains(text(),"Exterior Color")]/following-sibling::div/child::span`,
-
-  InteriorColor: `//span[contains(text(),"Interior Color")]/following-sibling::div/child::span`,
-
-  Doors: `//span[contains(text(),"Doors")]/following-sibling::span`,
-
-  StockNumber: `//span[contains(text(),"Stock Number")]/following-sibling::span`,
-
-  FuelType: `//span[contains(text(),"Fuel Type")]/following-sibling::span`,
-  Vin: `//span[contains(text(),"Vin")]/following-sibling::span`,
-  pictures: `//img[@class='image-gallery-thumbnail-image']`,
+  Price: `//span[@class='price-2']`,
+  CarFullTitle: `//h1[@class='i10r_detailVehicleTitle']/child::a/text()[normalize-space()]`,
+  Kilometers: `//p[@class='i10r_optMPG']`,
+  Transmission: `//p[@class='i10r_optTrans']`,
+  Engine: `//p[@class='i10r_optEngine']`,
+  Trim: `//span[@class='vehicleTrim']`,
+  DriveType: `//p[@class='i10r_optDrive']`,
+  Vin: `//p[@class='i10r_optVin']`,
+  ExteriorColor: `//p[@class='i10r_optColor']`,
+  InteriorColor: `//p[@class='i10r_optInteriorColor']`,
+  FuelType: ``,
+  FuelEconomy: `//p[@class='i10r_optFuelEco']/label/following-sibling::text() `,
+  StockNumber: `//p[@class='i10r_optStock']`,
+  pictures: `//div[@class="carousel-item"]`,
+  SellerComments: `//div[@class="card-body"]`,
 };
 
 const puppeteer = require('puppeteer');
@@ -39,23 +23,33 @@ const path = require('path');
 var json2csv = require('json2csv').parse;
 
 //url
-const url = 'https://apnamotors.com/cars';
+const base_uri = 'https://www.magnesauto.com';
 
 (async function run() {
-  const base_uri = `https://apnamotors.com`;
   //custom path for storing the cookies
   const browser = await puppeteer.launch({
     headless: false,
   });
   const page = await browser.newPage();
-  await page.goto(url);
+  await page.goto(`${base_uri}/newandusedcars`);
+
+  // const select = page.$x(`//select[@aria-label='Page Size']`);
+  // await select.click();
+
+  // const value = page.$x(`//option[@value='50']`);
+  // await value.click();
+
+  // wait for 10 seconds
+  await page.waitForTimeout(10000);
+
+  // do something else after waiting
 
   //get all the urls of product from 1 page
   const urls = await getUrls(page);
+  console.log(urls.length);
 
   for (let i = 0; i < urls.length; i++) {
     const uri = base_uri + urls[i].url;
-    console.log(uri);
     //Every Url is now availabe for each page
 
     //in this array we will store details of one car
@@ -73,137 +67,145 @@ const url = 'https://apnamotors.com/cars';
       item.Price = sanitizeInt(new_data);
     } catch (error) {}
 
-    //get Year from xpath
+    //get Year , Make model1 , Make model 2 from xpath
     try {
-      let [data] = await page.$x(xpaths.Year);
-      data = await page.evaluate((el) => el.innerText, data);
-      item.Year = sanitizeInt(data);
-    } catch (error) {}
+      let [data] = await page.$x(xpaths.CarFullTitle);
+      new_data = await page.evaluate((el) => {
+        const carFullTitle = el.textContent.trim();
+        let [Year, MakeModel1, ...MakeModel2] = carFullTitle.split(' ');
+        MakeModel2 = MakeModel2.join(' ');
+        return [Year, MakeModel1, MakeModel2];
+      }, data);
+      let [Year, MakeModel1, MakeModel2] = new_data;
 
-    //get MakeModel1 from xpath
-    try {
-      let [data] = await page.$x(xpaths.MakeModel1);
-      data = await page.evaluate((el) => el.innerText, data);
-      item.MakeModel1 = sanitizeString(data);
-    } catch (error) {}
-
-    //get MakeModel2 from xpath
-    try {
-      let [data] = await page.$x(xpaths.MakeModel2);
-      data = await page.evaluate((el) => el.innerText, data);
-      item.MakeModel2 = sanitizeString(data);
+      item.Year = sanitizeInt(Year);
+      item.MakeModel1 = sanitizeString(MakeModel1);
+      item.MakeModel2 = sanitizeString(MakeModel2);
     } catch (error) {}
 
     //get Kilometers from xpath
     try {
       let [data] = await page.$x(xpaths.Kilometers);
-      data = await page.evaluate((el) => el.innerText, data);
+      data = await page.evaluate((el) => el.textContent, data);
       item.Kilometers = sanitizeInt(data);
     } catch (error) {}
 
     //get Transmission from xpath
     try {
       let [data] = await page.$x(xpaths.Transmission);
-      data = await page.evaluate((el) => el.innerText, data);
+      data = await page.evaluate((el) => el.textContent, data);
+      data = data.split(':')[1];
       item.Transmission = sanitizeString(data);
     } catch (error) {}
 
     //get Engine from xpath
     try {
       let [data] = await page.$x(xpaths.Engine);
-      data = await page.evaluate((el) => el.innerText, data);
-      item.Engine = sanitizeString(data);
-    } catch (error) {}
-
-    //get Engine Size from xpath
-    try {
-      let [data] = await page.$x(xpaths.EngineSize);
-      data = await page.evaluate((el) => el.innerText, data);
-      item.EngineSize = sanitizeString(data);
+      data = await page.evaluate((el) => el.textContent, data);
+      let [engineSize, ...engineType] = data.split(':')[1].split(' ').slice(1);
+      engineType = engineType.join(' ');
+      item.Engine = engineSize;
+      item.EngineSize = engineType;
     } catch (error) {}
 
     //get Trim from xpath
     try {
       let [data] = await page.$x(xpaths.Trim);
-      new_data = await page.evaluate((el) => el.innerHTML, data);
-      new_data_splited = new_data.split('<!-- -->');
-      //Trim value is present at second last index
-      //so reverse the array and get the second index
-      const trim_value = new_data_splited.reverse()[1];
-      item.Trim = sanitizeString(trim_value);
-    } catch (error) {}
-
-    //get City Fuel Economy from xpath
-    try {
-      let [data] = await page.$x(xpaths.CityFuelEconomy);
-      data = await page.evaluate((el) => el.innerText, data);
-      item.CityFuelEconomy = sanitizeString(data);
-    } catch (error) {}
-
-    //get Highway Fuel Economy from xpath
-    try {
-      let [data] = await page.$x(xpaths.HwyFuelEconomy);
-      data = await page.evaluate((el) => el.innerText, data);
-      item.HwyFuelEconomy = sanitizeString(data);
+      data = await page.evaluate((el) => el.textContent, data);
+      item.Trim = sanitizeString(data);
     } catch (error) {}
 
     //get Drive Type from xpath
     try {
       let [data] = await page.$x(xpaths.DriveType);
-      data = await page.evaluate((el) => el.innerText, data);
+      data = await page.evaluate((el) => el.textContent, data);
+      data = data.split(':')[1];
       item.DriveType = sanitizeString(data);
+    } catch (error) {}
+
+    //get Vin from xpath
+    try {
+      let [data] = await page.$x(xpaths.Vin);
+      data = await page.evaluate((el) => el.textContent.trim(), data);
+      data = data.split(':')[1];
+
+      item.Vin = sanitizeString(data);
     } catch (error) {}
 
     //get Exterior Color from xpath
     try {
       let [data] = await page.$x(xpaths.ExteriorColor);
-      data = await page.evaluate((el) => el.innerText, data);
+      data = await page.evaluate((el) => el.textContent, data);
+      data = data.split(':')[1];
       item.ExteriorColor = sanitizeString(data);
     } catch (error) {}
 
     //get Interior Color from xpath
     try {
       let [data] = await page.$x(xpaths.InteriorColor);
-      data = await page.evaluate((el) => el.innerText, data);
+      data = await page.evaluate((el) => el.textContent, data);
+      data = data.split(':')[1];
       item.InteriorColor = sanitizeString(data);
-    } catch (error) {}
-
-    //get Doors from xpath
-    try {
-      let [data] = await page.$x(xpaths.Doors);
-      data = await page.evaluate((el) => el.innerText, data);
-      item.Doors = sanitizeInt(data);
     } catch (error) {}
 
     //get Stock from xpath
     try {
       let [data] = await page.$x(xpaths.StockNumber);
-      data = await page.evaluate((el) => el.innerText, data);
+      data = await page.evaluate((el) => el.textContent, data);
+      data = data.split(':')[1];
       item.StockNumber = sanitizeInt(data);
     } catch (error) {}
 
-    //get FuelType from xpath
+    //get City and Highway Fuel Economy from xpath
     try {
-      let [data] = await page.$x(xpaths.FuelType);
-      data = await page.evaluate((el) => el.innerText, data);
-      item.FuelType = sanitizeString(data);
+      let [data] = await page.$x(xpaths.FuelEconomy);
+      data = await page.evaluate((el) => el.textContent, data);
+      let [city, hwy] = data.split('/');
+      city = city.split(' ')[2];
+      hwy = hwy.split(' ')[1];
+      item.CityFuelEconomy = sanitizeString(city);
+      item.HwyFuelEconomy = sanitizeString(hwy);
     } catch (error) {}
 
-    //get Vin from xpath
+    //get Seller Comments from xpath
     try {
-      let [data] = await page.$x(xpaths.Vin);
-      data = await page.evaluate((el) => el.innerText, data);
-      item.Vin = sanitizeString(data);
+      const text = await page.evaluate(() => {
+        const divs = document.querySelectorAll('.card-body');
+        let firstText;
+
+        for (let i = 0; i < divs.length; i++) {
+          const text = divs[i].textContent.trim();
+          firstText = text;
+          break;
+        }
+        return firstText;
+      });
+      item.SellerComments = sanitizeString(text);
     } catch (error) {}
 
     //fetch all images src
     try {
-      let imgs = await page.$x(xpaths.pictures);
-      let imgSrcs = await Promise.all(
-        imgs.map(async (img) => {
-          return await page.evaluate((el) => el.src, img);
-        })
+      // let imgs = await page.$x(xpaths.pictures);
+
+      // let imgSrcs = await page.evaluate(() => {
+      //   let results = [];
+      //   let items = document.querySelectorAll('.carousel-item img');
+      //   items.forEach((item) => {
+      //     results.push(item.getAttribute('src'));
+      //   });
+      //   return results;
+      // });
+
+      const imgSrcs = await page.$$eval('.carousel-item img', (imgs) =>
+        imgs.map((img) => img.getAttribute('data-src'))
       );
+
+      // let imgSrcs = await Promise.all(
+      //   imgs.map(async (img) => {
+      //     return await page.evaluate((el) => el.src, img);
+      //   })
+      // );
+
       if (imgSrcs.length > 0) {
         //move first image to last in index
         imgSrcs.push(imgSrcs.shift());
@@ -217,7 +219,7 @@ const url = 'https://apnamotors.com/cars';
     items.push(item);
     if (items.length > 0) {
       //add items to csv
-      await write(Object.keys(items), items, `apnamotors_cars.csv`);
+      await write(Object.keys(items), items, `Magnes_Auto.csv`);
     }
     console.log(`${i + 1} Product Done`);
   }
@@ -230,7 +232,7 @@ const getUrls = async (page) => {
   let urls = await page.evaluate(() => {
     let results = [];
     //it'll give all the links for cars
-    let items = document.querySelectorAll(`.py-1 > a`);
+    let items = document.querySelectorAll('.i10r_vehicleTitle > a');
     //to get the href from a tags
     items.forEach((item) => {
       results.push({
